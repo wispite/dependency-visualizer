@@ -10,7 +10,12 @@ from nuget import (
     get_package_base_address,
     resolve_dependency_version
 )
-from graph import load_test_repository, build_dependency_graph
+from graph import (
+    load_test_repository,
+    build_dependency_graph,
+    build_reverse_graph,
+    find_reverse_dependencies
+)
 
 
 def parse_arguments():
@@ -189,6 +194,34 @@ def main():
 
         print_graph(graph)
         print_cycles(cycles)
+
+        if args.mode == "test":
+            reverse_graph = build_reverse_graph(repository)
+
+            reverse_dependencies, reverse_cycles = (
+                find_reverse_dependencies(
+                    args.package,
+                    reverse_graph
+                )
+            )
+
+            print("\n=== Reverse Dependencies ===\n")
+
+            if reverse_dependencies:
+                for index, package in enumerate(
+                        reverse_dependencies, start=1
+                ):
+                    print(f"{index}. {package}")
+            else:
+                print("No reverse dependencies found.")
+
+            if reverse_cycles:
+                print("\nCycles in reverse graph:")
+
+                for index, cycle in enumerate(
+                        reverse_cycles, start=1
+                ):
+                    print(f"{index}. {' -> '.join(cycle)}")
 
         print("\nOperation completed successfully!")
 

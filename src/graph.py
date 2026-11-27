@@ -96,3 +96,32 @@ def build_dependency_graph(root_package, get_dependencies):
             )
 
     return graph, cycles
+
+
+def build_reverse_graph(repository):
+
+    reverse_graph = {
+        package: [] for package in repository
+    }
+
+    for package, dependencies in repository.items():
+        for dependency in dependencies:
+            reverse_graph[dependency].append(package)
+
+    return reverse_graph
+
+
+def find_reverse_dependencies(root_package, reverse_graph):
+
+    graph, cycles = build_dependency_graph(
+        root_package,
+        lambda package: reverse_graph[package]
+    )
+
+    reverse_dependencies = []
+
+    for package in graph:
+        if package != root_package:
+            reverse_dependencies.append(package)
+
+    return reverse_dependencies, cycles
