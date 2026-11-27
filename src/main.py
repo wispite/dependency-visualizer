@@ -1,12 +1,16 @@
-
 import argparse
 import re
 from pathlib import Path
 from urllib.parse import urlparse
-from urllib.error import URLError, HTTPError
+from urllib.error import URLError
 import xml.etree.ElementTree as ET
 
-from nuget import get_direct_dependencies
+from nuget import (
+    get_direct_dependencies,
+    get_package_base_address,
+    resolve_dependency_version
+)
+from graph import load_test_repository, build_dependency_graph
 
 
 def parse_arguments():
@@ -14,30 +18,19 @@ def parse_arguments():
         description="Dependency Visualizer - package dependency analyzer"
     )
 
-    parser.add_argument(
-        "--package",
-        required=True,
-        help="Name of the package"
-    )
-
+    parser.add_argument("--package", required=True, help="Name of the package")
     parser.add_argument(
         "--repository",
         required=True,
         help="Repository URL or path to test repository file"
     )
-
     parser.add_argument(
         "--mode",
         required=True,
         choices=["remote", "test"],
         help="Working mode: remote or test"
     )
-
-    parser.add_argument(
-        "--version",
-        required=True,
-        help="Package version"
-    )
+    parser.add_argument("--version", required=True, help="Package version")
 
     return parser.parse_args()
 
@@ -47,8 +40,8 @@ def validate_arguments(args):
         raise ValueError("Invalid package name")
 
     if not re.fullmatch(
-        r"\d+(?:\.\d+)*(?:-[A-Za-z0-9.-]+)?(?:\+[A-Za-z0-9.-]+)?",
-        args.version
+            r"\d+(?:\.\d+)*(?:-[A-Za-z0-9.-]+)?(?:\+[A-Za-z0-9.-]+)?",
+            args.version
     ):
         raise ValueError("Invalid package version")
 
@@ -67,6 +60,11 @@ def validate_arguments(args):
         if not repository_path.is_file():
             raise ValueError("Test repository path must point to a file")
 
+        if not re.fullmatch(r"[A-Z]+", args.package):
+            raise ValueError(
+                "Test mode package name must contain uppercase Latin letters"
+            )
+
 
 def print_dependencies(dependencies):
     print("\n=== Direct Dependencies ===\n")
@@ -81,6 +79,73 @@ def print_dependencies(dependencies):
         print(f"   Framework: {dependency['framework']}")
 
 
+def print_graph(graph):
+    print("\n=== Dependency Graph ===\n")
+
+    for package, dependencies in graph.items():
+        if dependencies:
+            print(f"{package} -> {', '.join(dependencies)}")
+        else:
+            print(f"{package} -> (no dependencies)")
+
+
+def print_cycles(cycles):
+    print("\n=== Cycle Detection ===\n")
+
+    if not cycles:
+        print("No cycles detected.")
+        return
+
+    for index, cycle in enumerate(cycles, start=1):
+        print(f"{index}. {' -> '.join(cycle)}")
+
+
+def build_remote_graph(repository_url, root_package, root_version):
+    base_address = get_package_base_address(repository_url)
+
+    resolved_versions = {
+        root_package.lower(): root_version
+    }
+
+    def get_dependencies(package):
+        package_key = package.lower()
+        package_version = resolved_versions[package_key]
+
+        dependencies = get_direct_dependencies(
+            repository_url,
+            package,
+            package_version
+        )
+
+        unique_dependencies = {}
+
+        for dependency in dependencies:
+            dependency_id = dependency["id"]
+            dependency_key = dependency_id.lower()
+            version_range = dependency["version"]
+
+            if dependency_key not in resolved_versions:
+                resolved_versions[dependency_key] = (
+                    resolve_dependency_version(
+                        base_address,
+                        dependency_id,
+                        version_range
+                    )
+                )
+
+            if dependency_key not in unique_dependencies:
+                unique_dependencies[dependency_key] = dependency_id
+
+        return list(unique_dependencies.values())
+
+    graph, cycles = build_dependency_graph(
+        root_package,
+        get_dependencies
+    )
+
+    return graph, cycles, resolved_versions
+
+
 def main():
     try:
         args = parse_arguments()
@@ -93,27 +158,47 @@ def main():
         print(f"Version:     {args.version}")
 
         if args.mode == "test":
-            raise ValueError(
-                "Test mode dependency retrieval will be implemented "
-                "in a later stage."
+            repository = load_test_repository(args.repository)
+
+            if args.package not in repository:
+                raise ValueError(
+                    f"Package {args.package} not found in test repository"
+                )
+
+            print("\nBuilding dependency graph...")
+
+            graph, cycles = build_dependency_graph(
+                args.package,
+                lambda package: repository[package]
             )
 
-        print("\nConfiguration loaded successfully!")
+        else:
+            print("\nDownloading dependencies and building graph...")
+            print("This may take some time...\n")
 
-        print("\nDownloading package dependencies...")
+            graph, cycles, resolved_versions = build_remote_graph(
+                args.repository,
+                args.package,
+                args.version
+            )
 
-        dependencies = get_direct_dependencies(
-            args.repository,
-            args.package,
-            args.version
-        )
+            print("=== Resolved Package Versions ===")
 
-        print_dependencies(dependencies)
+            for package, version in resolved_versions.items():
+                print(f"{package}: {version}")
 
-        print("\nDependency retrieval completed successfully!")
+        print_graph(graph)
+        print_cycles(cycles)
 
-    except (ValueError, URLError, TimeoutError, OSError,
-            ET.ParseError) as error:
+        print("\nOperation completed successfully!")
+
+    except (
+            ValueError,
+            URLError,
+            TimeoutError,
+            OSError,
+            ET.ParseError
+    ) as error:
         print(f"\nError: {error}")
         raise SystemExit(1)
 
