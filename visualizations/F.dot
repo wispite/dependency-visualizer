@@ -1,0 +1,12 @@
+digraph DependencyGraph {
+    rankdir="LR";
+    node [shape=box, style=filled, fillcolor=lightblue];
+
+    "F" [fillcolor=lightcoral];
+    "G" [fillcolor=lightcoral];
+    "H" [fillcolor=lightcoral];
+
+    "F" -> "G";
+    "G" -> "H";
+    "H" -> "F";
+}

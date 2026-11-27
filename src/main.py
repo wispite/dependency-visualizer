@@ -16,6 +16,7 @@ from graph import (
     build_reverse_graph,
     find_reverse_dependencies
 )
+from visualizer import generate_graphviz
 
 
 def parse_arguments():
@@ -104,6 +105,12 @@ def print_cycles(cycles):
     for index, cycle in enumerate(cycles, start=1):
         print(f"{index}. {' -> '.join(cycle)}")
 
+def print_graphviz(graph, cycles):
+    print("\n=== Graphviz DOT Description ===\n")
+
+    dot_description = generate_graphviz(graph, cycles)
+
+    print(dot_description)
 
 def build_remote_graph(repository_url, root_package, root_version):
     base_address = get_package_base_address(repository_url)
@@ -194,6 +201,7 @@ def main():
 
         print_graph(graph)
         print_cycles(cycles)
+        print_graphviz(graph, cycles)
 
         if args.mode == "test":
             reverse_graph = build_reverse_graph(repository)
