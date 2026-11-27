@@ -105,10 +105,15 @@ def print_cycles(cycles):
     for index, cycle in enumerate(cycles, start=1):
         print(f"{index}. {' -> '.join(cycle)}")
 
-def print_graphviz(graph, cycles):
+def print_graphviz(graph, cycles, package, open_browser):
     print("\n=== Graphviz DOT Description ===\n")
 
-    dot_description = generate_graphviz(graph, cycles)
+    dot_description = generate_graphviz(
+        graph,
+        cycles,
+        output_name=package,
+        open_browser=open_browser
+    )
 
     print(dot_description)
 
@@ -201,7 +206,12 @@ def main():
 
         print_graph(graph)
         print_cycles(cycles)
-        print_graphviz(graph, cycles)
+        print_graphviz(
+            graph,
+            cycles,
+            args.package,
+            args.mode == "remote"
+        )
 
         if args.mode == "test":
             reverse_graph = build_reverse_graph(repository)
