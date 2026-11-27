@@ -60,6 +60,41 @@ python3 src/main.py --package Newtonsoft.Json --repository https://api.nuget.org
 - Требуемая версия.
 - Целевая платформа (Target Framework).
 
+
+### Тестирование
+
+**1. Получение информации о реальном пакете Newtonsoft.Json:**
+
+```bash
+python3 src/main.py --package Newtonsoft.Json --repository https://api.nuget.org/v3/index.json --mode remote --version 13.0.3
+```
+
+Ожидаемый результат: программа обращается к NuGet, получает сведения о пакете и его зависимостях.
+
+**2. Проверка другого пакета:**
+
+```bash
+python3 src/main.py --package Serilog --repository https://api.nuget.org/v3/index.json --mode remote --version 4.2.0
+```
+
+Ожидаемый результат: программа получает данные другого существующего пакета.
+
+**3. Проверка несуществующего пакета:**
+
+```bash
+python3 src/main.py --package NonExistingPackage123456 --repository https://api.nuget.org/v3/index.json --mode remote --version 1.0.0
+```
+
+Ожидаемый результат: программа сообщает об ошибке получения данных пакета.
+
+**4. Проверка некорректного URL репозитория:**
+
+```bash
+python3 src/main.py --package Newtonsoft.Json --repository invalid-url --mode remote --version 13.0.3
+```
+
+Ожидаемый результат: программа отклоняет некорректный URL.
+
 ### Результат этапа
 
 Реализован механизм получения и обработки информации о прямых зависимостях NuGet-пакетов заданной версии. Полученные данные выводятся в консоль и могут использоваться на следующих этапах для построения графа зависимостей.
